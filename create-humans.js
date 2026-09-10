@@ -119,25 +119,30 @@ export async function createHumans(settings = {}) {
  const details={};
  function box(x,y,z,w,h,d){const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();g.translate(x,y,z);return g;}
  function ball(x,y,z,w,h,d){const g=new THREE.SphereGeometry(1,8,5).toNonIndexed();g.scale(w,h,d);g.translate(x,y,z);return g;}
- function merged(parts){const result=mergeGeometries(parts);parts.forEach(g=>g.dispose());return result;}
+ function merged(parts){parts.forEach(g=>g.deleteAttribute('uv'));const result=mergeGeometries(parts);parts.forEach(g=>g.dispose());return result;}
  for(const type of faceTypes){
   const spread=type==='wide'?.039:type==='soft'?.029:.032;
   const eyeHeight=type==='soft'?.011:.008;
   const marks=[];
   for(const sign of [-1,1]){
-   marks.push(ball(sign*spread,1.634,.078,.007,eyeHeight*.45,.004));
-   const brow=box(sign*spread,1.658,.073,.022,.004,.006);marks.push(brow);
+   marks.push(ball(sign*spread,1.634,.083,.0035,eyeHeight*.31,.0018));
+   const brow=ball(sign*spread,1.653,.077,.011,.0025,.0025);marks.push(brow);
   }
   marks.push(ball(0,1.563,.076,type==='wide'?.017:.014,.0025,.003));
   details['face-'+type]=merged(marks);
-  details['nose-'+type]=merged([ball(0,1.601,.075,type==='angular'?.014:.012,.023,type==='angular'?.023:.017),ball(-.077,1.617,0,.016,.027,.018),ball(.077,1.617,0,.016,.027,.018)]);
+  details['eyes-'+type]=merged([-1,1].map(sign=>ball(sign*spread,1.634,.079,.009,eyeHeight*.46,.003)));
+  details['nose-'+type]=merged([ball(0,1.616,.077,.007,.020,.008),ball(0,1.596,.085,type==='angular'?.012:.010,.009,.011),ball(-.081,1.617,0,.012,.024,.016),ball(.081,1.617,0,.012,.024,.016)]);
  }
  for(const type of hairTypes.filter(t=>t!=='bald')){
-  const cap=new THREE.SphereGeometry(1,10,4,0,Math.PI*2,0,Math.PI/2).toNonIndexed();cap.scale(.098,.078,.091);cap.translate(0,1.685,0);
+  // A shaped hairline: high at forehead, lower at temples and nape.
+  const capPoints=[];const radial=16,rows=6;
+  function scalp(row,col){const a=col/radial*Math.PI*2;const front=Math.max(0,Math.sin(a)),back=Math.max(0,-Math.sin(a));const theta=(row/rows)*(1.55-.34*front+.35*back);return [Math.sin(theta)*Math.cos(a)*.093,1.651+Math.cos(theta)*.102,Math.sin(theta)*Math.sin(a)*.087-.003];}
+  for(let row=0;row<rows;row++)for(let col=0;col<radial;col++){const a=scalp(row,col),b=scalp(row+1,col),c=scalp(row+1,col+1),d=scalp(row,col+1);capPoints.push(...a,...c,...b,...a,...d,...c);}
+  const cap=new THREE.BufferGeometry();cap.setAttribute('position',new THREE.Float32BufferAttribute(capPoints,3));softenNormals(cap);
   const parts=[cap];
-  if(type==='cropped')parts.push(box(0,1.672,-.059,.138,.052,.046));
+  if(type==='cropped')parts.push(ball(0,1.674,-.061,.073,.067,.031));
   if(type==='swept'){
-   const fringe=box(-.025,1.689,.062,.114,.043,.045);parts.push(fringe,box(0,1.65,-.058,.145,.10,.052));
+   const fringe=ball(-.026,1.689,.062,.060,.024,.023);parts.push(fringe,ball(0,1.658,-.058,.078,.083,.037));
   }
   if(type==='bob')parts.push(ball(0,1.62,-.043,.098,.14,.064),ball(-.082,1.615,0,.029,.12,.054),ball(.082,1.615,0,.029,.12,.054));
   if(type==='long'){
@@ -158,7 +163,7 @@ export async function createHumans(settings = {}) {
  const hideColors=[0x967047,0xb18a59,0x715039,0xc2a174,0x806044];
  // Open neckline and uneven open hem; a single low-poly hide shell per build.
  function hideGeometry(name,build){
-  const rings=[[.72,.213,.141],[.97,.199,.137],[1.175,.162,.118],[1.355,.224,.14],[1.44,.184,.118],[1.455,.069,.064]];
+  const rings=[[.72,.213,.141],[.87,.207,.142],[1.015,.195,.132],[1.085,.167,.113],[1.13,.166,.112],[1.20,.171,.125],[1.355,.220,.137],[1.425,.176,.108],[1.455,.068,.063]];
   const pts=[],tints=[];const n=12;
   const point=(r,i)=>{
    const [y,rx,rz]=rings[r],a=2*Math.PI*(i%n)/n;
@@ -174,7 +179,7 @@ export async function createHumans(settings = {}) {
   function triangle(a,b,c,t){pts.push(...a,...b,...c);for(let j=0;j<3;j++)tints.push(t,t*.98,t*.94);}
   for(let r=0;r<rings.length-1;r++)for(let i=0;i<n;i++){
    const a=point(r,i),b=point(r+1,i),c=point(r+1,i+1),d=point(r,i+1);
-   const tone=.85+random(r*n+i,7123)*.15;
+   const tone=r===3?.44:.90+random(r*n+i,7123)*.10;
    triangle(a,b,c,tone);triangle(a,c,d,tone);
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));g.setAttribute('color',new THREE.Float32BufferAttribute(tints,3));softenNormals(g);return g;
@@ -380,7 +385,7 @@ export async function createHumans(settings = {}) {
    // Varied hair: female models favor below-shoulder hair; manual style selections still apply to everyone.
    const hairRoll=random(i,7847);
    const hairType=hair==='mixed'?(name==='female'?(hairRoll<.75?'long':hairRoll<.90?'bob':hairRoll<.95?'curls':hairRoll<.98?'swept':hairRoll<.995?'cropped':'bald'):hairTypes[Math.floor(hairRoll*5)]):hair;
-   for(const detail of ['face-'+faceType,'nose-'+faceType,...(hairType==='bald'?[]:['hair-'+hairType])]) (extraGroups[detail]??=[]).push(i);
+   for(const detail of ['face-'+faceType,'eyes-'+faceType,'nose-'+faceType,...(hairType==='bald'?[]:['hair-'+hairType])]) (extraGroups[detail]??=[]).push(i);
   }
   for(const [name,indices] of Object.entries(groups)){
    if(!indices.length)continue;
@@ -402,10 +407,10 @@ export async function createHumans(settings = {}) {
    indices.forEach((i,j)=>{
     batch.setMatrixAt(j,people[i]);
     const skinColor=colors[skin==='mixed'?(count===1?3:Math.round(i*(colors.length-1)/(count-1))):Number(skin)];
-    const color=(key.startsWith('station-')||key.startsWith('tool-')||key.startsWith('cargo-'))?0xffffff:key.startsWith('hide-')?hideColors[Math.floor(random(i,97531)*hideColors.length)]:key.startsWith('nose')?skinColor:key.startsWith('face')?0x302420:appearances[i].hairColor;
+    const color=key.startsWith('eyes-')?0xded8c9:(key.startsWith('station-')||key.startsWith('tool-')||key.startsWith('cargo-'))?0xffffff:key.startsWith('hide-')?hideColors[Math.floor(random(i,97531)*hideColors.length)]:key.startsWith('nose')?skinColor:key.startsWith('face')?0x302420:appearances[i].hairColor;
     batch.setColorAt(j,new THREE.Color(color));
    });
-   registerBatch(batch,indices,key.startsWith('hair-')||key.startsWith('face-')||key.startsWith('nose-')?2:key.startsWith('tool-')?14:0);
+   registerBatch(batch,indices,key.startsWith('eyes-')||key.startsWith('hair-')||key.startsWith('face-')||key.startsWith('nose-')?2:key.startsWith('tool-')?14:0);
    batch.instanceMatrix.needsUpdate=true;batch.instanceColor.needsUpdate=true;batch.computeBoundingSphere();result.add(batch);crowds.push(batch);
   }
 

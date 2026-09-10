@@ -5,7 +5,7 @@ Lightweight, low-poly people with varied appearance and procedural actions. Crea
 ## Install from GitHub
 
 ```sh
-npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.4.0 three
+npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.4.1 three
 ```
 
 This repository is private, so your Git client must have access. The package is installed directly from GitHub, not the npm registry. Append `#<commit-sha>` to pin a revision and commit your application's lockfile.
@@ -127,3 +127,7 @@ This repository is prepared for private project use. No open-source license has 
 ## v0.4 visual refinement
 
 Softer shading, rounder jaw/skull and torso contours, tapered limbs and rounded long hair. Walking includes calf/foot flex and relaxed elbows, with less vertical bob. The external rig still receives identical shared straight limbs and the same joint table. Each body is now 2,264 triangles; update the static module and GLBs together.
+
+## v0.4.1 appearance refinement
+
+Shaped forehead/temple hairlines, clearer eyes and a smaller nose bridge, a fuller jaw, and fitted hide clothing with a waist belt. Body joint positions and shared limb geometry conventions remain unchanged.
