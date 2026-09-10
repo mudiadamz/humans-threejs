@@ -46,7 +46,10 @@ Your application supplies the scene, lights, camera and renderer. The returned `
 - Animal-hide tunics and food loads: fruit, vegetables, meat, fish and a small lamb.
 - Separate empty-handed and carrying walks, standing, cutting, picking, sitting, mining and hoeing.
 - Two-handed arm IK for mining and hoeing; GPU deformation for animation.
+- Per-person placement and external part-pose matrices; extraction of all 15 body parts.
 - Environment props off by default, so your project can supply its own scenery.
+
+For integration with an existing rig, see [individual movement, part extraction and per-frame posing](INDIVIDUAL-CONTROL.md).
 
 See [API and model specifications](SPECS.md) for all options and limitations.
 

@@ -50,7 +50,7 @@ people.userData.dispose(); // Idempotent; removes group and frees its resources
 
 Call `update` each frame with elapsed seconds. `speed` scales the cycle; typical values are 0.65, 1 and 1.4. `walking: false` disables the walking gait only; it does not pause working actions. To pause all motion, stop advancing the supplied elapsed time. Actions and appearance are selected at creation: create a replacement group to change them.
 
-Walking is in place. Move the group in your world separately. Individual people span several instanced batches; the current public API does not expose per-person movement or action switching. All people in a group share an action. Use separate groups for different actions.
+Walking is in place. Move the group in your world separately. Individual people span several instanced batches. `setPersonTransform`, `setPersonPose`, `clearPersonPose`, and `getBodyParts` support per-person movement and external posing; see [Individual control](INDIVIDUAL-CONTROL.md). All people in a group still share an action/prop selection, but custom poses can override each person independently. Use separate groups for different equipped props.
 
 ## Geometry and rendering
 
@@ -65,6 +65,6 @@ Walking is in place. Move the group in your world separately. Individual people 
 
 ## Limits
 
-This is a stylized procedural model, not a production skeletal rig. There is no foot IK, terrain collision, object grasping physics, water simulation, navigation or root motion. Extreme poses may have intersecting geometry. GPU deformation does not update CPU vertex positions for raycasting or bounds, and custom animated shadow/depth materials are not supplied. Allow margin when designing culling or shadow systems.
+This is a stylized procedural model, not a production skeletal rig. There is no foot IK, terrain collision, object grasping physics, water simulation, navigation or root motion. Extreme poses may have intersecting geometry. GPU deformation does not update CPU vertex positions for raycasting or bounds, and custom animated shadow/depth materials are not supplied. Batch frustum culling is disabled to keep custom poses visible. Use application-level spatial group culling and appropriate custom shadow materials.
 
 Repeated factory calls create independent resources and reload/parse model data; reuse a group where possible. The preview caps its selector at 5,000 people, but this is not a measured device guarantee. Very large worlds should use spatial batches for culling.

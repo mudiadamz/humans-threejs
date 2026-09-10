@@ -17,6 +17,24 @@ export async function createHumans(settings = {}) {
  }
  const modelUrls={male:new URL('./human-male.glb',import.meta.url).href,female:new URL('./human-female.glb',import.meta.url).href,...settings.modelUrls};
  const result=new THREE.Group();result.name='Humans';const crowds=[];
+ const partNames=['torso','neck','head','leftThigh','leftCalf','leftFoot','leftUpperArm','leftForearm','leftHand','rightThigh','rightCalf','rightFoot','rightUpperArm','rightForearm','rightHand'];
+ const partStarts=[0,228,288,420,516,612,708,804,900,996,1092,1188,1284,1380,1476];
+ const partCounts=[228,60,132,...Array(12).fill(96)];
+ const partParents=[null,'torso','neck','torso','leftThigh','leftCalf','torso','leftUpperArm','leftForearm','torso','rightThigh','rightCalf','torso','rightUpperArm','rightForearm'];
+ const personRefs=Array.from({length:count},()=>[]),personKeys=[];
+ // 16 RGBA matrices per person, tiled into rows to support large crowds.
+ const poseColumns=Math.min(count,64),poseWidth=poseColumns*64;
+ const poseData=new Float32Array(poseWidth*Math.ceil(count/poseColumns)*4);
+ const poseTexture=new THREE.DataTexture(poseData,poseWidth,Math.ceil(count/poseColumns),THREE.RGBAFormat,THREE.FloatType);
+ poseTexture.needsUpdate=true;
+ const poseOffset=i=>(Math.floor(i/poseColumns)*poseWidth+(i%poseColumns)*64)*4;
+ function registerBatch(mesh,indices,attachment=0){
+  mesh.geometry.setAttribute('posePersonId',new THREE.InstancedBufferAttribute(new Float32Array(indices),1));
+  if(!mesh.geometry.hasAttribute('bodyPartId'))mesh.geometry.setAttribute('bodyPartId',new THREE.Float32BufferAttribute(new Float32Array(mesh.geometry.attributes.position.count).fill(attachment),1));
+  indices.forEach((i,slot)=>personRefs[i].push({mesh,slot}));
+  // GPU poses may extend beyond the static geometry bounds.
+  mesh.frustumCulled=false;
+ }
  const models = {};
  for (const name of ['male','female']) {
   const gltf=await new GLTFLoader().loadAsync(modelUrls[name]);
@@ -42,6 +60,8 @@ export async function createHumans(settings = {}) {
     const component=Math.floor((v-420)%576/96);
     limbIds[v]=component===0?1:component<3?2:3;
    }
+   const partIds=new Float32Array(position.count);partStarts.forEach((start,id)=>partIds.fill(id,start,start+partCounts[id]));
+   geometry.setAttribute('bodyPartId',new THREE.Float32BufferAttribute(partIds,1));
    geometry.setAttribute('limbId',new THREE.BufferAttribute(limbIds,1));
    for(let i=0;i<position.count;i++){
     const x=position.getX(i),y=position.getY(i),z=position.getZ(i);
@@ -242,9 +262,14 @@ export async function createHumans(settings = {}) {
  const gait={time:{value:0},amount:{value:1},speed:{value:1}};
  function animateMaterial(material,part){
   material.onBeforeCompile=shader=>{
+   shader.uniforms.personPoses={value:poseTexture};shader.uniforms.poseColumns={value:poseColumns};
    shader.uniforms.actionPose=actionPose;shader.uniforms.carryPose=carryPose;shader.uniforms.walkTime=gait.time;shader.uniforms.walkAmount=gait.amount;shader.uniforms.walkSpeed=gait.speed;
    shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
     ${part==='body'?'attribute float limbId; attribute vec3 restShoulder; attribute vec3 restElbow; attribute vec3 restWrist; attribute float armSegment;':''}
+    attribute float posePersonId; attribute float bodyPartId;
+    uniform sampler2D personPoses; uniform int poseColumns;
+    ivec2 personTexel(int offset){int i=int(posePersonId+.5);return ivec2((i%poseColumns)*64+offset,i/poseColumns);}
+    mat4 partPose(){int col=int(bodyPartId+.5)*4;return mat4(texelFetch(personPoses,personTexel(col),0),texelFetch(personPoses,personTexel(col+1),0),texelFetch(personPoses,personTexel(col+2),0),texelFetch(personPoses,personTexel(col+3),0));}
     uniform float actionPose; uniform float carryPose; uniform float walkTime; uniform float walkAmount; uniform float walkSpeed;
     vec3 alignBone(vec3 v,vec3 a,vec3 b){a=normalize(a);b=normalize(b);vec3 c=cross(a,b);return v+cross(c,v)+cross(c,cross(c,v))/max(0.001,1.0+dot(a,b));}
     vec3 gaitRotate(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);}
@@ -252,7 +277,7 @@ export async function createHumans(settings = {}) {
    shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
     float gaitSeed=0.0;
     #ifdef USE_INSTANCING
-      gaitSeed=dot(instanceMatrix[3].xz,vec2(1.73,2.91))+instanceMatrix[1].y*13.7;
+      gaitSeed=posePersonId*2.39996323+instanceMatrix[1].y*13.7;
     #endif
     float gaitPhase=walkTime*walkSpeed*(5.5+0.35*sin(gaitSeed))+gaitSeed;
     float gaitSide=position.x<0.0?-1.0:1.0;
@@ -290,6 +315,9 @@ export async function createHumans(settings = {}) {
     }`:''}
     ${part==='tool'?`if(actionPose>=5.0)gaitAngle=workAngle;`:''}
     objectNormal=gaitRotate(gaitRotate(objectNormal,gaitAngle),bend);
+    bool manualPose=texelFetch(personPoses,personTexel(60),0).x>.5;
+    mat4 manualTransform=mat4(1.0);
+    if(manualPose){manualTransform=partPose();objectNormal=transpose(inverse(mat3(manualTransform)))*normal;}
    `);
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     transformed=gaitRotate(transformed-vec3(0.0,gaitPivot,0.0),gaitAngle)+vec3(0.0,gaitPivot,0.0);
@@ -305,9 +333,10 @@ export async function createHumans(settings = {}) {
     }
     ${part==='body'?`if(actionPose>=5.0 && (limbId==1.0 || limbId==2.0)){transformed.x+=gaitSide*.025;transformed.z+=gaitSide*.065;}`:''}
     transformed.y+=0.018*(1.0+cos(gaitPhase*2.0))*walkAmount;
+    if(manualPose)transformed=(manualTransform*vec4(position,1.0)).xyz;
    `);
   };
-  material.customProgramCacheKey=()=>`human-walk-${part}-v2`;
+  material.customProgramCacheKey=()=>`human-walk-${part}-v3`;
  }
  for(const model of Object.values(models))animateMaterial(model.material,'body');
  animateMaterial(toolMaterial,'tool');animateMaterial(detailMaterial,'detail');animateMaterial(hideMaterial,'cloth');
@@ -331,6 +360,7 @@ export async function createHumans(settings = {}) {
    const name=variant==='mixed'?(i%2?'female':'male'):variant;
    const shape=build==='mixed'?builds[Math.floor(random(i,9173)*builds.length)]:build;
    const key=`${name}-${shape}`;
+   personKeys[i]=key;
    (groups[key]??=[]).push(i);
    if(options.environmentProps && actionPose.value>0 && action!=='hoeing')(extraGroups['station-'+action]??=[]).push(i);
    if(action==='cutting')(extraGroups['tool-knife-'+shape]??=[]).push(i);
@@ -356,6 +386,7 @@ export async function createHumans(settings = {}) {
     people[i]=obj.matrix.clone();
     crowd.setMatrixAt(j,obj.matrix);crowd.setColorAt(j,new THREE.Color(colors[skin==='mixed'?(count===1?3:Math.round(i*(colors.length-1)/(count-1))):Number(skin)]));
    });
+   registerBatch(crowd,indices);
    crowd.instanceMatrix.needsUpdate=true;crowd.instanceColor.needsUpdate=true;crowd.computeBoundingSphere();result.add(crowd);crowds.push(crowd);
   }
   for(const [key,indices] of Object.entries(extraGroups)){
@@ -366,12 +397,46 @@ export async function createHumans(settings = {}) {
     const color=(key.startsWith('station-')||key.startsWith('tool-')||key.startsWith('cargo-'))?0xffffff:key.startsWith('hide-')?hideColors[Math.floor(random(i,97531)*hideColors.length)]:key.startsWith('nose')?skinColor:key.startsWith('face')?0x302420:appearances[i].hairColor;
     batch.setColorAt(j,new THREE.Color(color));
    });
+   registerBatch(batch,indices,key.startsWith('hair-')||key.startsWith('face-')||key.startsWith('nose-')?2:key.startsWith('tool-')?14:0);
    batch.instanceMatrix.needsUpdate=true;batch.instanceColor.needsUpdate=true;batch.computeBoundingSphere();result.add(batch);crowds.push(batch);
   }
 
  // Call on every frame with elapsed seconds. Walking stays in place.
  result.userData.update=(elapsedSeconds,{walking=true,speed=1}={})=>{
   gait.time.value=elapsedSeconds;gait.amount.value=walking&&['walking','walking-carrying'].includes(options.action)?1:0;gait.speed.value=speed;
+ };
+ function assertPerson(index){if(disposed)throw new Error('Humans group is disposed');if(!Number.isInteger(index)||index<0||index>=count)throw new Error('Invalid person index');}
+ function validMatrix(matrix){return matrix?.isMatrix4&&matrix.elements.every(Number.isFinite)&&Math.abs(matrix.determinant())>1e-10&&matrix.elements[3]===0&&matrix.elements[7]===0&&matrix.elements[11]===0&&matrix.elements[15]===1;}
+ const identity=new THREE.Matrix4();
+ result.userData.setPersonTransform=(index,matrix)=>{
+  assertPerson(index);if(!validMatrix(matrix))throw new Error('Expected an invertible affine Matrix4');
+  // User transform replaces placement, while retaining generated age scale.
+  const height=appearances[index].metres/1.735,width=Math.min(1,height);
+  const final=matrix.clone().multiply(new THREE.Matrix4().makeScale(width,height,width));
+  for(const {mesh,slot} of personRefs[index]){mesh.setMatrixAt(slot,final);mesh.instanceMatrix.needsUpdate=true;mesh.boundingSphere=null;mesh.boundingBox=null;}
+ };
+ result.userData.setPersonPose=(index,transforms)=>{
+  assertPerson(index);
+  if(!transforms||typeof transforms!=='object')throw new Error('Expected named model-space part matrices');
+  for(const [name,matrix] of Object.entries(transforms))if(!partNames.includes(name)||!validMatrix(matrix))throw new Error(`Invalid part transform: ${name}`);
+  const offset=poseOffset(index);
+  partNames.forEach((name,id)=>(transforms[name]??identity).toArray(poseData,offset+id*16));
+  poseData[offset+240]=1;poseTexture.needsUpdate=true;
+ };
+ result.userData.clearPersonPose=index=>{assertPerson(index);poseData[poseOffset(index)+240]=0;poseTexture.needsUpdate=true;};
+ result.userData.getBodyParts=index=>{
+  assertPerson(index);const source=geometries[personKeys[index]],parts={};
+  partNames.forEach((name,id)=>{
+   const geometry=new THREE.BufferGeometry(),start=partStarts[id],length=partCounts[id];
+   for(const key of ['position','normal'])geometry.setAttribute(key,new THREE.Float32BufferAttribute(source.attributes[key].array.slice(start*3,(start+length)*3),3));
+   geometry.computeBoundingBox();geometry.computeBoundingSphere();
+   // Bind pivot at the center of the component's uppermost ring.
+   const positions=geometry.attributes.position,ring=new Map();
+   for(let v=0;v<positions.count;v++)if(Math.abs(positions.getY(v)-geometry.boundingBox.max.y)<.0001){const p=new THREE.Vector3().fromBufferAttribute(positions,v);ring.set(p.toArray().join(','),p);}
+   const pivot=[...ring.values()].reduce((sum,p)=>sum.add(p),new THREE.Vector3()).multiplyScalar(1/ring.size);
+   parts[name]={geometry,pivot,parent:partParents[id]};
+  });
+  return parts;
  };
  result.userData.people=appearances.map((p,i)=>({index:i,age:p.age,height:p.metres}));
  let disposed=false;
@@ -380,7 +445,7 @@ export async function createHumans(settings = {}) {
   for(const batch of crowds)batch.dispose();
   for(const geometry of [...Object.values(geometries),...Object.values(details)])geometry.dispose();
   for(const model of Object.values(models)){model.geometry.dispose();model.material.dispose();}
-  stationMaterial.dispose();toolMaterial.dispose();detailMaterial.dispose();hideMaterial.dispose();result.clear();
+  poseTexture.dispose();stationMaterial.dispose();toolMaterial.dispose();detailMaterial.dispose();hideMaterial.dispose();result.clear();
  };
  return result;
 }

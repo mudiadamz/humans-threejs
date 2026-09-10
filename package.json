@@ -1,6 +1,6 @@
 {
   "name": "humans-threejs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Low-poly instanced humans with procedural appearance and actions for Three.js",
