@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rig-ready body parts</title><style>body{margin:0;font:14px system-ui;color:#252525;background:#f5f3f0}canvas{display:block}header{position:absolute;top:20px;left:20px}h1{font-size:20px;margin:0 0 5px}footer{position:absolute;bottom:20px;left:20px;right:20px;display:flex;gap:20px;flex-wrap:wrap;background:#fffffff0;padding:16px;border-radius:10px}label{display:flex;gap:10px;align-items:center}</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script></head><body><header><h1>Rig-ready parts · male / female</h1>Same limb geometries on both sides and both bodies · drag to orbit</header><footer><label>Elbow <input id="elbow" type="range" min="0" max="90" value="75"><output id="e">75°</output></label><label>Knee <input id="knee" type="range" min="0" max="90" value="77"><output id="k">77°</output></label><label>Hip <input id="hip" type="range" min="0" max="90" value="35"><output id="h">35°</output></label><label><input id="caps" type="checkbox">Wireframe</label></footer><script type="module">
+import * as THREE from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {HUMAN_PARTS,HUMAN_JOINTS} from './human-parts.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color('#f5f3f0');const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,1,.01,100);camera.position.set(2,1.8,4);const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.9,0);controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2.4));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-3,6,5);scene.add(sun);
+const geometries=Object.fromEntries(Object.entries(HUMAN_PARTS).map(([key,p])=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p.positions,3));g.setAttribute('normal',new THREE.BufferAttribute(p.normals,3));return[key,g];}));
+const knees=[],elbows=[],hips=[],materials=[];
+for(const [sex,offset,color] of [['male',-.55,0xc09470],['female',.55,0x8d6043]]){
+ const j=HUMAN_JOINTS[sex],material=new THREE.MeshStandardMaterial({color,roughness:.85});materials.push(material);const root=new THREE.Group();root.position.x=offset;scene.add(root);
+ function piece(key,parent,position){const group=new THREE.Group();group.position.set(...position);group.add(new THREE.Mesh(geometries[key],material));parent.add(group);return group;}
+ const torso=piece(sex==='male'?'torsoMale':'torsoFemale',root,[0,j.hip[1],0]);
+ const neck=piece('neck',torso,[0,j.neckBase[1]-j.hip[1],0]);piece('head',neck,[0,j.headBase[1]-j.neckBase[1],0]);
+ for(const sign of [-1,1]){
+  const thigh=piece('thigh',root,[sign*j.hip[0],j.hip[1],0]);hips.push(thigh);
+  const calf=piece('calf',thigh,[0,-j.lengths.thigh,0]);knees.push(calf);piece('foot',calf,[0,-j.lengths.calf,0]);
+  const arm=piece('upperArm',torso,[sign*j.shoulder[0],j.shoulder[1]-j.hip[1],0]);
+  const forearm=piece('forearm',arm,[0,-j.lengths.upperArm,0]);elbows.push(forearm);piece('hand',forearm,[0,-j.lengths.forearm,0]);
+ }
+}
+function update(){const e=+document.querySelector('#elbow').value,k=+document.querySelector('#knee').value,h=+document.querySelector('#hip').value;elbows.forEach(p=>p.rotation.x=-e*Math.PI/180);knees.forEach(p=>p.rotation.x=k*Math.PI/180);hips.forEach(p=>p.rotation.x=-h*Math.PI/180);document.querySelector('#e').value=e+'°';document.querySelector('#k').value=k+'°';document.querySelector('#h').value=h+'°';materials.forEach(m=>m.wireframe=document.querySelector('#caps').checked);}
+for(const id of ['elbow','knee','hip','caps'])document.getElementById(id).addEventListener('input',update);update();function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}addEventListener('resize',resize);resize();renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
+</script></body></html>

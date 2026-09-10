@@ -38,7 +38,7 @@ Matrices must be finite, invertible, affine `THREE.Matrix4` objects. The factory
 
 ## Components
 
-`getBodyParts(index)` returns a map with `{geometry, pivot, parent}` entries. Geometry is copied, in grounded model coordinates with the selected build deformation, before age/instance scaling. Pivot is the center of the component's uppermost ring, a useful approximate bind joint. Parent is metadata, not an active skeleton.
+`getBodyParts(index)` returns a map with `{geometry, pivot, parent}` entries. Geometry is copied, in grounded model coordinates with the selected build deformation, before age/instance scaling. Pivot is the explicit bind joint from the rig metadata, including hip-based torso and base-based neck/head pivots. Parent is metadata, not an active skeleton.
 
 - `torso`, `neck`, `head`
 - `leftThigh`, `leftCalf`, `leftFoot`
@@ -46,7 +46,7 @@ Matrices must be finite, invertible, affine `THREE.Matrix4` objects. The factory
 - `rightThigh`, `rightCalf`, `rightFoot`
 - `rightUpperArm`, `rightForearm`, `rightHand`
 
-Here left is the negative-X side and right is positive-X. Match these coordinates to your rig rather than assuming its naming convention. The components total 1,572 vertices / 524 triangles. Calf and foot are separate parts; so are forearm and hand.
+Here left is the negative-X side and right is positive-X. Match these coordinates to your rig rather than assuming its naming convention. The components total 3,168 vertices / 1,056 triangles. Calf and foot are separate parts; so are forearm and hand.
 
 To use these geometries in another rig, either retain their model-space vertices and apply bind-relative matrices, or translate vertices by `-pivot` and place each mesh at that pivot in your hierarchy. The caller owns extracted geometries and must dispose them:
 

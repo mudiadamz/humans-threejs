@@ -1,5 +1,7 @@
 # API and model specifications
 
+See [rig-ready static export and joint definitions](RIG-INTEGRATION.md) for integration with an external rig.
+
 ## Entry point
 
 `await createHumans(options)` returns a `THREE.Group`. Requires Three.js with `three/addons/` imports; tested against **0.180.0**. No DOM, camera, lights or render loop are created by the function.
@@ -54,14 +56,14 @@ Walking is in place. Move the group in your world separately. Individual people 
 
 ## Geometry and rendering
 
-- Each base GLB: **524 triangles**, **1,572 non-indexed vertices**, one mesh, one material, no textures, no skeleton or animation clips.
-- Male file: 38,544 bytes. Female file: 38,540 bytes.
-- +Y up, +Z forward, metre units. Raw soles are at y=0.015; the function grounds the geometry.
+- Each base GLB: **1,056 triangles**, **3,168 non-indexed vertices**, one mesh, one material, no textures, no skeleton or animation clips.
+- Male and female GLBs: 78,676 bytes each.
+- +Y up, +Z forward, metre units. Raw soles are at y=0; geometry is already grounded.
 - Base body height: approximately 1.735 m. Age/height scaling is applied per instance.
 - Appearance parts and tools are generated in JavaScript; they are not inside the GLBs.
 - Batches share geometry/material by appearance category. Total triangle and draw-call counts increase with hair, face, clothing, cargo and tools.
 - Body components have stable limb IDs to prevent hands and arms from splitting when build proportions change.
-- Model URL overrides must point to copies of these compatible GLBs: the limb mapping depends on their vertex count and component order. Arbitrary replacement characters are not supported.
+- Model URL overrides must point to copies of these compatible GLBs: the limb mapping uses the v0.3 part metadata and rigVersion 1. Arbitrary replacement characters are not supported.
 
 ## Limits
 

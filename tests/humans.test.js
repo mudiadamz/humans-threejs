@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { HUMAN_LAYOUTS } from '../human-parts.js';
 import { createHumans } from '../create-humans.js';
 if(!globalThis.ProgressEvent)globalThis.ProgressEvent=class{constructor(type,props){this.type=type;Object.assign(this,props);}};
 const modelUrls=Object.fromEntries(['male','female'].map(n=>[n,'data:model/gltf-binary;base64,'+readFileSync(new URL(`../human-${n}.glb`,import.meta.url)).toString('base64')]));
@@ -24,7 +25,7 @@ test('whole arms keep identical limb tags across body builds',async()=>{
   const g=await createHumans({count:2,build,modelUrls});
   for(const mesh of g.children.filter(m=>m.geometry.hasAttribute('limbId'))){
    const ids=mesh.geometry.attributes.limbId.array;
-   assert.ok(ids.slice(708,996).every(n=>n===3));assert.ok(ids.slice(1284,1572).every(n=>n===3));
+   for(const part of HUMAN_LAYOUTS.male.filter(p=>/UpperArm$|Forearm$|Hand$/.test(p.name)))assert.ok(ids.slice(part.start,part.start+part.count).every(n=>n===3));
    for(const key of ['restShoulder','restElbow','restWrist'])assert.ok(mesh.geometry.attributes[key].array.every(Number.isFinite));
   }g.userData.dispose();
  }
@@ -57,7 +58,7 @@ test('exports all 15 components and uploads isolated custom pose rows',async()=>
  const g=await createHumans({count:65,modelUrls});
  const parts=g.userData.getBodyParts(0);
  assert.equal(Object.keys(parts).length,15);
- assert.equal(Object.values(parts).reduce((n,p)=>n+p.geometry.attributes.position.count,0),1572);
+ assert.equal(Object.values(parts).reduce((n,p)=>n+p.geometry.attributes.position.count,0),HUMAN_LAYOUTS.male.reduce((n,p)=>n+p.count,0));
  assert.equal(parts.rightHand.parent,'rightForearm');
  const mesh=g.children.find(m=>m.geometry.hasAttribute('limbId'));
  const shader={uniforms:{},vertexShader:ShaderLib.standard.vertexShader};mesh.material.onBeforeCompile(shader);

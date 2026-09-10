@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HUMAN_LAYOUTS, HUMAN_JOINTS } from './human-parts.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -17,10 +18,8 @@ export async function createHumans(settings = {}) {
  }
  const modelUrls={male:new URL('./human-male.glb',import.meta.url).href,female:new URL('./human-female.glb',import.meta.url).href,...settings.modelUrls};
  const result=new THREE.Group();result.name='Humans';const crowds=[];
- const partNames=['torso','neck','head','leftThigh','leftCalf','leftFoot','leftUpperArm','leftForearm','leftHand','rightThigh','rightCalf','rightFoot','rightUpperArm','rightForearm','rightHand'];
- const partStarts=[0,228,288,420,516,612,708,804,900,996,1092,1188,1284,1380,1476];
- const partCounts=[228,60,132,...Array(12).fill(96)];
- const partParents=[null,'torso','neck','torso','leftThigh','leftCalf','torso','leftUpperArm','leftForearm','torso','rightThigh','rightCalf','torso','rightUpperArm','rightForearm'];
+ const layout=HUMAN_LAYOUTS.male;
+ const partNames=layout.map(p=>p.name),partStarts=layout.map(p=>p.start),partCounts=layout.map(p=>p.count),partParents=layout.map(p=>p.parent);
  const personRefs=Array.from({length:count},()=>[]),personKeys=[];
  // 16 RGBA matrices per person, tiled into rows to support large crowds.
  const poseColumns=Math.min(count,64),poseWidth=poseColumns*64;
@@ -39,8 +38,7 @@ export async function createHumans(settings = {}) {
  for (const name of ['male','female']) {
   const gltf=await new GLTFLoader().loadAsync(modelUrls[name]);
   const model=gltf.scene.getObjectByName('Human');
-  model.geometry.computeBoundingBox();
-  model.geometry.translate(0,-model.geometry.boundingBox.min.y,0);
+  if(model.userData.rigVersion!==1 || model.geometry.attributes.position.count!==partCounts.reduce((a,b)=>a+b,0))throw new Error('Use the rig-ready v0.3 GLBs shipped with this module');
   models[name]=model;
  }
  // Cache four proportion variants per model; head size is preserved across builds.
@@ -51,18 +49,22 @@ export async function createHumans(settings = {}) {
   for(const build of builds){
    const geometry=model.geometry.clone();
    const position=geometry.attributes.position;
-   // Original GLBs have fixed disconnected components: torso, neck, head,
-   // then thigh, calf, foot, upper arm, forearm, hand on each side.
-   // Tag components before build deformation; never infer limbs from x/y.
-   if(position.count!==1572)throw new Error('Unexpected human geometry topology');
-   const limbIds=new Float32Array(position.count);
-   for(let v=420;v<position.count;v++){
-    const component=Math.floor((v-420)%576/96);
-    limbIds[v]=component===0?1:component<3?2:3;
-   }
-   const partIds=new Float32Array(position.count);partStarts.forEach((start,id)=>partIds.fill(id,start,start+partCounts[id]));
+   const limbIds=new Float32Array(position.count),partIds=new Float32Array(position.count);
+   layout.forEach((p,id)=>{
+    const limb=/Thigh$/.test(p.name)?1:/Calf$|Foot$/.test(p.name)?2:/UpperArm$|Forearm$|Hand$/.test(p.name)?3:0;
+    limbIds.fill(limb,p.start,p.start+p.count);partIds.fill(id,p.start,p.start+p.count);
+   });
    geometry.setAttribute('bodyPartId',new THREE.Float32BufferAttribute(partIds,1));
    geometry.setAttribute('limbId',new THREE.BufferAttribute(limbIds,1));
+   function deformPoint(x,y,z){
+    const body=1-smooth(1.39,1.52,y),waist=Math.exp(-Math.pow((y-1.10)/.23,2)),shoulder=Math.exp(-Math.pow((y-1.34)/.16,2));
+    let w=1,d=1;
+    if(build==='slim'){w-=.18*body;d-=.19*body;}
+    if(build==='broad'){w+=body*(.10+.22*shoulder);d+=body*(.09+.12*shoulder);}
+    if(build==='full'){w+=body*(.21+.27*waist);d+=body*(.25+.40*waist);}
+    return new THREE.Vector3(x*w,y,z*d);
+   }
+   geometry.userData.bindPivots=HUMAN_LAYOUTS[name].map(p=>deformPoint(...p.pivot));
    for(let i=0;i<position.count;i++){
     const x=position.getX(i),y=position.getY(i),z=position.getZ(i);
     const body=1-smooth(1.39,1.52,y);
@@ -74,21 +76,13 @@ export async function createHumans(settings = {}) {
     if(build==='full'){width+=body*(.21+.27*waist);depth+=body*(.25+.40*waist);}
     position.setXYZ(i,x*width,y,z*depth);
    }
-   // Rest joints shared by every vertex of each arm, for two-handed work IK.
-   const joints={};
-   function ringCenter(start,top){
-    let y=top?-Infinity:Infinity;
-    for(let v=start;v<start+96;v++)y=top?Math.max(y,position.getY(v)):Math.min(y,position.getY(v));
-    const unique=new Map();
-    for(let v=start;v<start+96;v++)if(Math.abs(position.getY(v)-y)<.0001){const a=[position.getX(v),y,position.getZ(v)];unique.set(a.join(','),a);}
-    const a=[...unique.values()];return a.reduce((sum,v)=>sum.add(new THREE.Vector3(...v)),new THREE.Vector3()).multiplyScalar(1/a.length);
-   }
-   for(let side=0;side<2;side++){const start=420+side*576+288;joints[side]=[ringCenter(start,true),ringCenter(start,false),ringCenter(start+96,false)];}
    const jointArrays=[[],[],[]],segments=[];
    for(let v=0;v<position.count;v++){
-    const side=v>=996?1:0;
-    for(let j=0;j<3;j++)jointArrays[j].push(...joints[side][j].toArray());
-    segments.push(v>=420?Math.floor((v-420)%576/96)-3:-1);
+    const id=partIds[v],right=id>=9,side=right?1:-1;
+    for(const [j,key] of ['shoulder','elbow','wrist'].entries()){
+     const p=HUMAN_JOINTS[name][key];jointArrays[j].push(...deformPoint(p[0]*side,p[1],p[2]).toArray());
+    }
+    segments.push(id===(right?12:6)?0:id===(right?13:7)?1:id===(right?14:8)?2:-1);
    }
    ['restShoulder','restElbow','restWrist'].forEach((key,j)=>geometry.setAttribute(key,new THREE.Float32BufferAttribute(jointArrays[j],3)));
    geometry.setAttribute('armSegment',new THREE.Float32BufferAttribute(segments,1));
@@ -286,18 +280,18 @@ export async function createHumans(settings = {}) {
     vec3 workGrip=actionPose==6.0?vec3(.015,1.01,.40):vec3(.015,1.13,.36);
     float gaitAngle=0.0;
     float gaitPivot=0.0;
-    ${part==='body'?`if(limbId==1.0 || limbId==2.0){gaitAngle=sin(gaitPhase)*gaitSide*0.40*walkAmount;gaitPivot=0.94;}
-    else if(limbId==3.0){gaitAngle=mix(-sin(gaitPhase)*gaitSide*0.32*walkAmount,-0.95,carryPose);gaitPivot=1.39;}`:''}
+    ${part==='body'?`if(limbId==1.0 || limbId==2.0){gaitAngle=sin(gaitPhase)*gaitSide*0.40*walkAmount;gaitPivot=0.925;}
+    else if(limbId==3.0){gaitAngle=mix(-sin(gaitPhase)*gaitSide*0.32*walkAmount,-0.95,carryPose);gaitPivot=1.385;}`:''}
     ${part==='body'?`if(limbId==3.0){
       if(actionPose==1.0)gaitAngle=position.x>0.0?-1.05+0.25*sin(gaitPhase*1.3):-1.05;
       if(actionPose==2.0)gaitAngle=position.x>0.0?-2.35+0.14*sin(gaitPhase):-0.4;
       if(actionPose==3.0)gaitAngle=-0.3+0.12*sin(gaitPhase);
       if(actionPose==4.0)gaitAngle=-0.75;
       if(actionPose==5.0)gaitAngle=-1.5+0.85*sin(gaitPhase*.7);
-      if(actionPose>0.0)gaitPivot=1.39;
+      if(actionPose>0.0)gaitPivot=1.385;
     }`:''}
-    ${part==='tool'?`gaitAngle=actionPose==5.0?-1.5+0.85*sin(gaitPhase*.7):-1.05+0.25*sin(gaitPhase*1.3);gaitPivot=1.39;`:''}
-    ${part==='body'?`if(actionPose==4.0 && (limbId==1.0 || limbId==2.0)){gaitAngle=limbId==2.0?-0.6:-1.4;gaitPivot=0.94;}`:''}
+    ${part==='tool'?`gaitAngle=actionPose==5.0?-1.5+0.85*sin(gaitPhase*.7):-1.05+0.25*sin(gaitPhase*1.3);gaitPivot=1.385;`:''}
+    ${part==='body'?`if(actionPose==4.0 && (limbId==1.0 || limbId==2.0)){gaitAngle=limbId==2.0?-0.6:-1.4;gaitPivot=0.925;}`:''}
     ${part==='cloth'?`if(actionPose==4.0){gaitAngle=-1.4*(1.0-smoothstep(.88,1.02,position.y));gaitPivot=.94;}`:''}
     float bend=actionPose==3.0?${part==='body'?'(limbId==3.0?0.95:limbId>0.0?0.0:0.95*smoothstep(.88,1.04,position.y))':part==='cloth'?'0.95*smoothstep(.88,1.04,position.y)':'0.95'}:0.0;
     if(actionPose>=5.0)bend=${part==='body'?'(limbId==3.0?1.0:limbId>0.0?0.0:smoothstep(.87,1.08,position.y))':part==='cloth'?'smoothstep(.87,1.08,position.y)':'1.0'}*(actionPose==6.0?.46:.16+.11*(1.0-workCycle));
@@ -328,7 +322,7 @@ export async function createHumans(settings = {}) {
     ${part==='cloth'?`transformed.z+=sin(gaitPhase+position.y*4.0)*0.025*(1.0-smoothstep(0.72,1.18,position.y))*walkAmount;`:''}
     transformed=gaitRotate(transformed-vec3(0.0,.85,0.0),bend)+vec3(0.0,.85,0.0);
     if(actionPose==4.0){
-     ${part==='body'?`if(limbId==2.0){transformed=gaitRotate(position-vec3(0.0,.57,0.0),-.6)+vec3(0.0,.94-.37*cos(1.4),.37*sin(1.4));}`:''}
+     ${part==='body'?`if(limbId==2.0){transformed=gaitRotate(position-vec3(0.0,.495,0.0),-.6)+vec3(0.0,.925-.430*cos(1.4),.430*sin(1.4));}`:''}
      transformed.y-=.50;
     }
     ${part==='body'?`if(actionPose>=5.0 && (limbId==1.0 || limbId==2.0)){transformed.x+=gaitSide*.025;transformed.z+=gaitSide*.065;}`:''}
@@ -430,10 +424,7 @@ export async function createHumans(settings = {}) {
    const geometry=new THREE.BufferGeometry(),start=partStarts[id],length=partCounts[id];
    for(const key of ['position','normal'])geometry.setAttribute(key,new THREE.Float32BufferAttribute(source.attributes[key].array.slice(start*3,(start+length)*3),3));
    geometry.computeBoundingBox();geometry.computeBoundingSphere();
-   // Bind pivot at the center of the component's uppermost ring.
-   const positions=geometry.attributes.position,ring=new Map();
-   for(let v=0;v<positions.count;v++)if(Math.abs(positions.getY(v)-geometry.boundingBox.max.y)<.0001){const p=new THREE.Vector3().fromBufferAttribute(positions,v);ring.set(p.toArray().join(','),p);}
-   const pivot=[...ring.values()].reduce((sum,p)=>sum.add(p),new THREE.Vector3()).multiplyScalar(1/ring.size);
+   const pivot=source.userData.bindPivots[id].clone();
    parts[name]={geometry,pivot,parent:partParents[id]};
   });
   return parts;

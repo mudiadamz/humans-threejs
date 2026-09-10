@@ -11,9 +11,13 @@ npm run preview
 
 Open [the local HTML preview](http://127.0.0.1:8080). The preview uses `create-humans.js` directly and provides controls for appearance, age, carrying and actions. It needs internet access for the pinned Three.js CDN modules. Serve it over HTTP; opening `index.html` through `file://` will not load the GLBs.
 
+## Use with your own rig
+
+Import synchronous joint-local arrays from [`human-parts.js`](human-parts.js), with no GLB loader or Three.js dependency. See [rig integration and joint table](RIG-INTEGRATION.md). The [rig preview](rig-preview.html) checks the same shared limbs at bent elbows and knees.
+
 ## Use in another project
 
-Copy `create-humans.js`, `human-male.glb`, and `human-female.glb` together into a served asset directory, and install Three.js. Bundlers must include the sibling GLB assets, or pass explicit `modelUrls`.
+Copy `create-humans.js`, `human-parts.js`, `human-male.glb`, and `human-female.glb` together into a served asset directory, and install Three.js. Bundlers must include the sibling GLB assets, or pass explicit `modelUrls`.
 
 ```js
 import { createHumans } from './create-humans.js';
@@ -67,6 +71,8 @@ Tests load the real models and verify actions, finite geometry bounds, limb tags
 |---|---|
 | `create-humans.js` | Single exported `createHumans()` function |
 | `human-male.glb`, `human-female.glb` | Base body models |
+| `human-parts.js` | Dependency-free, joint-local body arrays and joint table |
+| `rig-preview.html` | Shared-limb rig and bent-joint preview |
 | `index.html` | Interactive preview using the exported function |
 | `SPECS.md` | API, model specifications and known limitations |
 | `tests/` | Automated construction and regression checks |
