@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Low-poly human · Three.js viewer</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f3f0;color:#282a30;font:14px system-ui,sans-serif}canvas{display:block;width:100%;height:100%}header{position:absolute;top:24px;left:24px;right:24px;pointer-events:none}h1{font-size:20px;margin:0 0 6px;font-weight:600}p{margin:0;color:#666}footer{position:absolute;bottom:24px;left:24px;right:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;background:#ffffffed;border:1px solid #deddd9;border-radius:12px;width:fit-content;max-width:calc(100% - 48px)}input[type=number]{width:72px}select,button,input[type=number]{font:inherit;padding:9px;border:1px solid #ccc;border-radius:6px;background:white;color:#282a30}label{display:flex;align-items:center;gap:8px}#status{font-size:12px;color:#666}#error{position:absolute;top:110px;left:24px;right:24px;color:#a22;white-space:pre-wrap}#view{height:100dvh;min-height:380px}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="view" aria-label="Interactive 3D view of low-poly human models"></div>
+<header><h1>Low-poly human</h1><p>Drag to orbit · Scroll to zoom · Right-drag to pan</p></header>
+<div id="error" role="alert"></div>
+<footer><label>People <select id="count" disabled><option value="1">1</option><option value="3" selected>3</option><option value="100">100</option><option value="1000">1,000</option><option value="5000">5,000</option></select></label><label>Model <select id="variant" disabled><option value="male">Male</option><option value="female">Female</option><option value="mixed" selected>Mixed</option></select></label><label>Skin tone <select id="skin" disabled><option value="mixed" selected>Mixed spectrum</option><option value="0">Very light</option><option value="1">Light</option><option value="2">Light medium</option><option value="3">Medium</option><option value="4">Tan</option><option value="5">Brown</option><option value="6">Dark brown</option><option value="7">Deep</option></select></label><label>Build <select id="build" disabled><option value="mixed" selected>Mixed builds</option><option value="slim">Slim</option><option value="average">Average</option><option value="broad">Broad shoulders</option><option value="full">Fuller</option></select></label><label>Age from <input id="ageMin" type="number" min="3" max="100" step="1" value="20" disabled aria-label="Minimum age in years"></label><label>to <input id="ageMax" type="number" min="3" max="100" step="1" value="45" disabled aria-label="Maximum age in years"></label><label>Carrying <select id="carrying" disabled><option value="mixed" selected>Mixed food</option><option value="fruit">Fruit basket</option><option value="vegetables">Vegetable basket</option><option value="meat">Meat cuts</option><option value="livestock">Small lamb</option><option value="fish">Fish basket</option></select></label><label>Clothing <select id="clothing" disabled><option value="hide" selected>Animal-hide tunic</option><option value="none">None</option></select></label><label>Face <select id="face" disabled><option value="mixed">Varied</option><option value="soft">Soft</option><option value="angular">Angular</option><option value="wide">Wide-set</option></select></label><label>Hair <select id="hair" disabled><option value="mixed">Varied</option><option value="cropped">Cropped</option><option value="swept">Side-swept</option><option value="bob">Bob</option><option value="long">Long · below shoulders</option><option value="curls">Curly</option><option value="bald">Bald</option></select></label><label>Action <select id="action" disabled><option value="walking">Walking — empty hands</option><option value="walking-carrying">Walking — carrying</option><option value="standing">Standing</option><option value="cutting">Cutting food</option><option value="picking-fruit">Picking fruit</option><option value="picking-vegetables">Picking vegetables</option><option value="sitting-raft">Sitting</option><option value="mining">Mining</option><option value="hoeing">Hoeing soil</option></select></label><label>Pace <select id="pace"><option value="0.65">Slow</option><option value="1" selected>Normal</option><option value="1.4">Fast</option></select></label><label><input id="rotate" type="checkbox">Auto-rotate</label><button id="reset" disabled>Reset view</button><span id="status" aria-live="polite">Loading Three.js…</span></footer>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createHumans } from './create-humans.js';
+const status=document.querySelector('#status');
+try {
+ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ document.querySelector('#view').appendChild(renderer.domElement);
+ const scene=new THREE.Scene();scene.background=new THREE.Color('#f5f3f0');
+ scene.add(new THREE.HemisphereLight(0xffffff,0x777581,2.4));
+ const light=new THREE.DirectionalLight(0xffffff,2.3);light.position.set(-3,6,5);scene.add(light);
+ const camera=new THREE.PerspectiveCamera(38,1,.01,1000);
+ const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.49;
+ let humans,grid,revision=0;
+ const value=id=>document.getElementById(id).value;
+ function frame(){const count=Number(value('count'));const width=(count<=3?count:Math.ceil(Math.sqrt(count)))*1.05;const d=Math.max(3.5,width*.9)/Math.min(1,camera.aspect);controls.target.set(0,.8,0);camera.position.set(count<=3?.3:d*.7,count<=3?1.8:d*.85,d*1.5);controls.update();}
+ async function rebuild(){
+  const ticket=++revision;status.textContent='Building people…';
+  document.querySelector('#carrying').disabled=value('action')!=='walking-carrying';
+  try {
+   const next=await createHumans({count:Number(value('count')),variant:value('variant'),skin:value('skin'),build:value('build'),face:value('face'),hair:value('hair'),clothing:value('clothing'),carrying:value('carrying'),action:value('action'),ageMin:Number(value('ageMin')),ageMax:Number(value('ageMax'))});
+   if(ticket!==revision){next.userData.dispose();return;}
+   humans?.userData.dispose();humans=next;scene.add(humans);
+   if(grid){scene.remove(grid);grid.geometry.dispose();grid.material.dispose();}
+   const size=Math.max(8,Math.ceil(Math.sqrt(Number(value('count'))))*1.05+4);
+   grid=new THREE.GridHelper(size,Math.min(100,Math.ceil(size)),0xd6d4d0,0xe5e3df);grid.position.y=-.005;scene.add(grid);
+   status.textContent=`${humans.userData.people.length.toLocaleString()} people · ${humans.children.length} instanced batches`;
+   document.querySelector('#error').textContent='';frame();
+  }catch(e){if(ticket===revision){document.querySelector('#error').textContent=e.message;status.textContent='Check settings';}}
+ }
+ function resize(){const view=document.querySelector('#view');renderer.setSize(view.clientWidth,view.clientHeight);camera.aspect=view.clientWidth/view.clientHeight;camera.updateProjectionMatrix();}
+ resize();await rebuild();
+ for(const id of ['count','variant','skin','build','face','hair','clothing','carrying','action','ageMin','ageMax']){const el=document.getElementById(id);el.disabled=false;el.addEventListener('change',rebuild);}
+ document.querySelector('#carrying').disabled=value('action')!=='walking-carrying';
+ document.querySelector('#reset').disabled=false;document.querySelector('#reset').addEventListener('click',frame);
+ document.querySelector('#rotate').addEventListener('change',e=>controls.autoRotate=e.target.checked);
+ addEventListener('resize',resize);
+ renderer.setAnimationLoop(ms=>{humans?.userData.update(ms/1000,{speed:Number(value('pace'))});controls.update();renderer.render(scene,camera);});
+}catch(e){status.textContent='Unable to load preview';document.querySelector('#error').textContent=e.message;}
+</script></body></html>

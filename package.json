@@ -1,0 +1,23 @@
+{
+  "name": "humans-threejs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Low-poly instanced humans with procedural appearance and actions for Three.js",
+  "exports": "./create-humans.js",
+  "files": [
+    "create-humans.js",
+    "human-male.glb",
+    "human-female.glb"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "preview": "python3 -m http.server 8080 --bind 127.0.0.1"
+  },
+  "peerDependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "three": "0.180.0"
+  }
+}
