@@ -57,8 +57,8 @@ Walking is in place. Move the group in your world separately. Individual people 
 
 ## Geometry and rendering
 
-- Each base GLB: **1,056 triangles**, **3,168 non-indexed vertices**, one mesh, one material, no textures, no skeleton or animation clips.
-- Male and female GLBs: 78,676 bytes each.
+- Each base GLB: **2,264 triangles**, **6,792 non-indexed vertices**, one mesh, one material, no textures, no skeleton or animation clips.
+- Male and female GLBs: 165,656 bytes each.
 - +Y up, +Z forward, metre units. Raw soles are at y=0; geometry is already grounded.
 - Base body height: approximately 1.735 m. Age/height scaling is applied per instance.
 - Appearance parts and tools are generated in JavaScript; they are not inside the GLBs.

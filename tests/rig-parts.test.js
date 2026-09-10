@@ -60,3 +60,15 @@ test('GLBs match static joint-local arrays, shared limbs and grounded soles',()=
  for(let i=1;i<15;i++)assert.equal(layouts.male[i].key,layouts.female[i].key);
  assert.notDeepEqual(parts.torsoMale.positions,parts.torsoFemale.positions);
 });
+
+test('shared vertices have continuous unit normals for soft body shading',()=>{
+ for(const [name,part] of Object.entries(parts)){
+  const seen=new Map();
+  for(let i=0;i<part.positions.length;i+=3){
+   const key=Array.from(part.positions.slice(i,i+3)).join(',');
+   const n=Array.from(part.normals.slice(i,i+3));
+   assert.ok(Math.abs(Math.hypot(...n)-1)<1e-5,name+' unit normal');
+   if(seen.has(key))assert.deepEqual(n,seen.get(key),name+' shading seam');else seen.set(key,n);
+  }
+ }
+});

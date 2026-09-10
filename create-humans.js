@@ -34,11 +34,19 @@ export async function createHumans(settings = {}) {
   // GPU poses may extend beyond the static geometry bounds.
   mesh.frustumCulled=false;
  }
+ function softenNormals(g){
+  const p=g.attributes.position,ids=g.attributes.bodyPartId,sums=new Map(),keys=[];
+  for(let i=0;i<p.count;i++){const key=`${ids?.getX(i)??0}:${p.getX(i).toFixed(6)},${p.getY(i).toFixed(6)},${p.getZ(i).toFixed(6)}`;keys.push(key);if(!sums.has(key))sums.set(key,new THREE.Vector3());}
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  for(let i=0;i<p.count;i+=3){a.fromBufferAttribute(p,i);b.fromBufferAttribute(p,i+1);c.fromBufferAttribute(p,i+2);const n=b.sub(a).cross(c.sub(a)).normalize();for(let j=0;j<3;j++)sums.get(keys[i+j]).add(n);}
+  for(const n of sums.values())n.normalize();
+  const normals=new Float32Array(p.count*3);keys.forEach((key,i)=>sums.get(key).toArray(normals,i*3));g.setAttribute('normal',new THREE.BufferAttribute(normals,3));
+ }
  const models = {};
  for (const name of ['male','female']) {
   const gltf=settings.modelData?.[name] ? await new GLTFLoader().parseAsync(settings.modelData[name],'') : await new GLTFLoader().loadAsync(modelUrls[name]);
   const model=gltf.scene.getObjectByName('Human');
-  if(model.userData.rigVersion!==1 || model.geometry.attributes.position.count!==partCounts.reduce((a,b)=>a+b,0))throw new Error('Use the rig-ready v0.3 GLBs shipped with this module');
+  if(model.userData.rigVersion!==1 || model.geometry.attributes.position.count!==partCounts.reduce((a,b)=>a+b,0))throw new Error('Use the matching rig-ready GLBs shipped with this module');
   models[name]=model;
  }
  // Cache four proportion variants per model; head size is preserved across builds.
@@ -86,7 +94,7 @@ export async function createHumans(settings = {}) {
    }
    ['restShoulder','restElbow','restWrist'].forEach((key,j)=>geometry.setAttribute(key,new THREE.Float32BufferAttribute(jointArrays[j],3)));
    geometry.setAttribute('armSegment',new THREE.Float32BufferAttribute(segments,1));
-   geometry.computeVertexNormals();geometry.computeBoundingBox();geometry.computeBoundingSphere();
+   softenNormals(geometry);geometry.computeBoundingBox();geometry.computeBoundingSphere();
    geometries[`${name}-${build}`]=geometry;
   }
  }
@@ -117,10 +125,10 @@ export async function createHumans(settings = {}) {
   const eyeHeight=type==='soft'?.011:.008;
   const marks=[];
   for(const sign of [-1,1]){
-   marks.push(box(sign*spread,1.634,.072,.014,eyeHeight,.008));
+   marks.push(ball(sign*spread,1.634,.078,.007,eyeHeight*.45,.004));
    const brow=box(sign*spread,1.658,.073,.022,.004,.006);marks.push(brow);
   }
-  marks.push(box(0,1.563,.071,type==='wide'?.033:.026,.004,.007));
+  marks.push(ball(0,1.563,.076,type==='wide'?.017:.014,.0025,.003));
   details['face-'+type]=merged(marks);
   details['nose-'+type]=merged([ball(0,1.601,.075,type==='angular'?.014:.012,.023,type==='angular'?.023:.017),ball(-.077,1.617,0,.016,.027,.018),ball(.077,1.617,0,.016,.027,.018)]);
  }
@@ -131,12 +139,12 @@ export async function createHumans(settings = {}) {
   if(type==='swept'){
    const fringe=box(-.025,1.689,.062,.114,.043,.045);parts.push(fringe,box(0,1.65,-.058,.145,.10,.052));
   }
-  if(type==='bob')parts.push(box(0,1.601,-.060,.181,.19,.056),box(-.082,1.608,0,.032,.18,.13),box(.082,1.608,0,.032,.18,.13));
+  if(type==='bob')parts.push(ball(0,1.62,-.043,.098,.14,.064),ball(-.082,1.615,0,.029,.12,.054),ball(.082,1.615,0,.029,.12,.054));
   if(type==='long'){
    // Hair falls behind the shoulders, with two narrower front sections.
-   parts.push(box(0,1.47,-.077,.19,.40,.056),
-    box(-.085,1.525,-.01,.034,.32,.105),box(.085,1.525,-.01,.034,.32,.105),
-    box(-.105,1.38,.066,.035,.18,.036),box(.105,1.38,.066,.035,.18,.036));
+   parts.push(ball(0,1.485,-.065,.099,.25,.063),
+    ball(-.085,1.525,-.01,.028,.19,.058),ball(.085,1.525,-.01,.028,.19,.058),
+    ball(-.10,1.405,.055,.025,.13,.028),ball(.10,1.405,.055,.025,.13,.028));
   }
   if(type==='curls'){
    for(let i=0;i<9;i++){const a=i*Math.PI*2/9;parts.push(ball(Math.cos(a)*.078,1.697+Math.sin(i*2)*.012,Math.sin(a)*.073,.034,.035,.033));}
@@ -169,7 +177,7 @@ export async function createHumans(settings = {}) {
    const tone=.85+random(r*n+i,7123)*.15;
    triangle(a,b,c,tone);triangle(a,c,d,tone);
   }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));g.setAttribute('color',new THREE.Float32BufferAttribute(tints,3));g.computeVertexNormals();return g;
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));g.setAttribute('color',new THREE.Float32BufferAttribute(tints,3));softenNormals(g);return g;
  }
  for(const name of ['male','female'])for(const build of builds)details[`hide-${name}-${build}`]=hideGeometry(name,build);
 
@@ -280,6 +288,11 @@ export async function createHumans(settings = {}) {
     vec3 workGrip=actionPose==6.0?vec3(.015,1.01,.40):vec3(.015,1.13,.36);
     float gaitAngle=0.0;
     float gaitPivot=0.0;
+    float jointFlex=0.0;vec3 flexPivot=vec3(0.0);
+    ${part==='body'?`if(actionPose==0.0 && walkAmount>0.0){
+     if(limbId==2.0){jointFlex=.45*max(0.0,-sin(gaitPhase)*gaitSide)*walkAmount;flexPivot=vec3(0.0,.495,0.0);}
+     if(limbId==3.0 && armSegment>=1.0 && carryPose<.5){jointFlex=(-.14+.06*sin(gaitPhase)*gaitSide)*walkAmount;flexPivot=restElbow;}
+    }`:''}
     ${part==='body'?`if(limbId==1.0 || limbId==2.0){gaitAngle=sin(gaitPhase)*gaitSide*0.40*walkAmount;gaitPivot=0.925;}
     else if(limbId==3.0){gaitAngle=mix(-sin(gaitPhase)*gaitSide*0.32*walkAmount,-0.95,carryPose);gaitPivot=1.385;}`:''}
     ${part==='body'?`if(limbId==3.0){
@@ -308,12 +321,13 @@ export async function createHumans(settings = {}) {
      gaitAngle=0.0;
     }`:''}
     ${part==='tool'?`if(actionPose>=5.0)gaitAngle=workAngle;`:''}
-    objectNormal=gaitRotate(gaitRotate(objectNormal,gaitAngle),bend);
+    objectNormal=gaitRotate(gaitRotate(gaitRotate(objectNormal,jointFlex),gaitAngle),bend);
     bool manualPose=texelFetch(personPoses,personTexel(60),0).x>.5;
     mat4 manualTransform=mat4(1.0);
     if(manualPose){manualTransform=partPose();objectNormal=transpose(inverse(mat3(manualTransform)))*normal;}
    `);
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+    transformed=gaitRotate(transformed-flexPivot,jointFlex)+flexPivot;
     transformed=gaitRotate(transformed-vec3(0.0,gaitPivot,0.0),gaitAngle)+vec3(0.0,gaitPivot,0.0);
     ${part==='body'?`if(actionPose>=5.0 && limbId==3.0){
      transformed=armSegment<.5?restShoulder+alignBone(position-restShoulder,restElbow-restShoulder,workElbow-restShoulder):workElbow+alignBone(position-restElbow,restWrist-restElbow,workHand-workElbow);
@@ -326,11 +340,11 @@ export async function createHumans(settings = {}) {
      transformed.y-=.50;
     }
     ${part==='body'?`if(actionPose>=5.0 && (limbId==1.0 || limbId==2.0)){transformed.x+=gaitSide*.025;transformed.z+=gaitSide*.065;}`:''}
-    transformed.y+=0.018*(1.0+cos(gaitPhase*2.0))*walkAmount;
+    transformed.y+=0.007*(1.0+cos(gaitPhase*2.0))*walkAmount;
     if(manualPose)transformed=(manualTransform*vec4(position,1.0)).xyz;
    `);
   };
-  material.customProgramCacheKey=()=>`human-walk-${part}-v3`;
+  material.customProgramCacheKey=()=>`human-walk-${part}-v4`;
  }
  for(const model of Object.values(models))animateMaterial(model.material,'body');
  animateMaterial(toolMaterial,'tool');animateMaterial(detailMaterial,'detail');animateMaterial(hideMaterial,'cloth');

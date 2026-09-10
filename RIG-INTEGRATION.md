@@ -1,4 +1,4 @@
-# Straight-limb rig integration (v0.3)
+# Straight-limb rig integration (v0.4)
 
 This export addresses items 1–6 of `HUMAN-MODEL-SPEC.md`, plus the optional knee-height adjustment. It is intended for a host rig that uses one shared geometry per limb type and places left/right instances at ±joint X.
 
@@ -16,7 +16,7 @@ This module has no imports, network requests, asynchronous initialization or Thr
 
 `torsoMale`, `torsoFemale`, `neck`, `head`, `thigh`, `calf`, `foot`, `upperArm`, `forearm`, `hand`.
 
-All vertices are already **joint-local**. Do not subtract another pivot. Treat shared arrays as read-only; copy if your renderer mutates them. Normals are unit-length, flat-shaded and use the same orientation as the positions. Geometry is non-indexed triangles.
+All vertices are already **joint-local**. Do not subtract another pivot. Treat shared arrays as read-only; copy if your renderer mutates them. Normals are unit-length, smooth-shaded and use the same orientation as the positions. Geometry is non-indexed triangles.
 
 ```js
 // In a Three.js host, using the synchronous arrays:
@@ -81,7 +81,7 @@ Open `rig-preview.html` via `npm run preview` to inspect the shared pieces at el
 
 ## GLBs and compatibility
 
-The male and female GLBs assemble the same arrays into 15 merged body components. Each has 1,056 triangles / 3,168 vertices, and is 78,676 bytes. The `Human` node's extras contain `rigVersion: 1`, the part ranges/pivots, and its joint table. `HUMAN_LAYOUTS` exports that same metadata synchronously.
+The male and female GLBs assemble the same arrays into 15 merged body components. Each has 2,264 triangles / 6,792 vertices, and is 165,656 bytes. The `Human` node's extras contain `rigVersion: 1`, the part ranges/pivots, and its joint table. `HUMAN_LAYOUTS` exports that same metadata synchronously.
 
 This is a topology change from v0.2. Replace the module, `human-parts.js`, and both GLBs together. The updated `createHumans` validates rig version and uses the new metadata; old hard-coded vertex offsets are invalid. `getBodyParts()` still returns model-space geometry with a separate pivot, whereas `HUMAN_PARTS` is already joint-local.
 

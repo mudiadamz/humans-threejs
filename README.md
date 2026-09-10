@@ -5,7 +5,7 @@ Lightweight, low-poly people with varied appearance and procedural actions. Crea
 ## Install from GitHub
 
 ```sh
-npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.3.1 three
+npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.4.0 three
 ```
 
 This repository is private, so your Git client must have access. The package is installed directly from GitHub, not the npm registry. Append `#<commit-sha>` to pin a revision and commit your application's lockfile.
@@ -123,3 +123,7 @@ This repository is prepared for private project use. No open-source license has 
 ## Packaging
 
 `npm pack` runs tests and creates an installable `.tgz`. `private: true` prevents accidental npm-registry publishing; it does not prevent GitHub or tarball installation.
+
+## v0.4 visual refinement
+
+Softer shading, rounder jaw/skull and torso contours, tapered limbs and rounded long hair. Walking includes calf/foot flex and relaxed elbows, with less vertical bob. The external rig still receives identical shared straight limbs and the same joint table. Each body is now 2,264 triangles; update the static module and GLBs together.

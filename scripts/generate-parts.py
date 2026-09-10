@@ -3,7 +3,7 @@ import math,json,struct
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 parts={}
-def surface(rings,n=8):
+def surface(rings,n=12):
  p=[];ns=[]
  def tri(a,b,c):
   u=[b[i]-a[i] for i in range(3)];v=[c[i]-a[i] for i in range(3)]
@@ -15,11 +15,19 @@ def surface(rings,n=8):
   for i in range(n):j=(i+1)%n;tri(a[i],b[i],b[j]);tri(a[i],b[j],a[j])
  # Rings listed bottom to top, CCW normals outward.
  for i in range(1,n-1):tri(rr[0][0],rr[0][i],rr[0][i+1]);tri(rr[-1][0],rr[-1][i+1],rr[-1][i])
+ # Average shared-vertex normals within each closed piece for soft shading.
+ sums={}
+ for i in range(0,len(p),3):
+  key=tuple(p[i:i+3]);acc=sums.setdefault(key,[0.,0.,0.])
+  for k in range(3):acc[k]+=ns[i+k]
+ for i in range(0,len(p),3):
+  v=sums[tuple(p[i:i+3])];l=math.sqrt(sum(x*x for x in v))
+  ns[i:i+3]=[round(x/l,7) for x in v]
  return {'positions':p,'normals':ns}
 def capsule(length,top,bottom,bulge):
  # Joint centers at y=0 and -length; hemispherical overlaps at both ends.
  t45=math.sqrt(.5)
- return surface([(-length-bottom,0,0,0),(-length-bottom*t45,bottom*t45,bottom*t45,0),(-length,bottom,bottom,0),(-length*.55,bulge[0],bulge[1],0),(0,top,top,0),(top*t45,top*t45,top*t45,0),(top,0,0,0)])
+ return surface([(-length-bottom,0,0,0),(-length-bottom*t45,bottom*t45,bottom*t45,0),(-length,bottom,bottom,0),(-length*.72,bulge[0]*.92,bulge[1]*.92,0),(-length*.40,bulge[0],bulge[1],0),(-length*.16,top*.98,top*.98,0),(0,top,top,0),(top*t45,top*t45,top*t45,0),(top,0,0,0)])
 parts['thigh']=capsule(.430,.078,.050,(.077,.080))
 parts['calf']=capsule(.415,.050,.032,(.054,.058))
 parts['upperArm']=capsule(.310,.060,.035,(.049,.052))
@@ -27,8 +35,8 @@ parts['forearm']=capsule(.280,.035,.026,(.033,.035))
 parts['hand']=capsule(.075,.026,.016,(.028,.023))
 parts['foot']=surface([(-.08,.048,.103,.038),(-.03,.048,.103,.038),(0,.033,.045,0),(.032,0,0,0)])
 parts['neck']=surface([(-.008,.057,.055,0),(.078,.057,.055,0)])
-parts['head']=surface([(-.010,.055,.058,0),(.055,.081,.079,0),(.175,.089,.084,0),(.235,.062,.061,0)])
-for sex,rings in [('Male',[(.895,.135,.09,0),(1.025,.16,.10,0),(1.175,.135,.085,0),(1.355,.205,.105,0),(1.435,.165,.085,0)]),('Female',[(.895,.155,.095,0),(1.025,.182,.11,0),(1.175,.113,.079,0),(1.355,.167,.112,.012),(1.435,.142,.081,0)])]:
+parts['head']=surface([(-.010,.042,.046,.006),(.012,.057,.055,.008),(.048,.071,.067,.008),(.093,.083,.074,.006),(.145,.085,.081,0),(.183,.080,.077,-.004),(.218,.058,.058,-.005),(.235,.020,.022,-.005)])
+for sex,rings in [('Male',[(.895,.13,.084,0),(.95,.149,.095,0),(1.025,.158,.097,0),(1.105,.139,.085,0),(1.185,.144,.092,0),(1.28,.18,.112,0),(1.35,.198,.109,0),(1.405,.18,.09,0),(1.435,.115,.07,0)]),('Female',[(.895,.145,.09,0),(.95,.175,.107,0),(1.025,.176,.108,0),(1.105,.13,.08,0),(1.185,.12,.079,0),(1.28,.15,.119,.014),(1.35,.161,.111,.009),(1.405,.146,.088,0),(1.435,.102,.065,0)])]:
  parts['torso'+sex]=surface([(y-.925,x,z,c) for y,x,z,c in rings])
 joints={}
 for sex,shoulder,hip in [('male',.182,.104),('female',.158,.117)]:

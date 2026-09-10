@@ -46,7 +46,7 @@ Matrices must be finite, invertible, affine `THREE.Matrix4` objects. The factory
 - `rightThigh`, `rightCalf`, `rightFoot`
 - `rightUpperArm`, `rightForearm`, `rightHand`
 
-Here left is the negative-X side and right is positive-X. Match these coordinates to your rig rather than assuming its naming convention. The components total 3,168 vertices / 1,056 triangles. Calf and foot are separate parts; so are forearm and hand.
+Here left is the negative-X side and right is positive-X. Match these coordinates to your rig rather than assuming its naming convention. The components total 6,792 vertices / 2,264 triangles. Calf and foot are separate parts; so are forearm and hand.
 
 To use these geometries in another rig, either retain their model-space vertices and apply bind-relative matrices, or translate vertices by `-pivot` and place each mesh at that pivot in your hierarchy. The caller owns extracted geometries and must dispose them:
 
