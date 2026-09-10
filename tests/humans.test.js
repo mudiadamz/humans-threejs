@@ -71,3 +71,9 @@ test('exports all 15 components and uploads isolated custom pose rows',async()=>
  assert.throws(()=>g.userData.setPersonTransform(-1,new Matrix4()),/index/);
  Object.values(parts).forEach(p=>p.geometry.dispose());g.userData.dispose();
 });
+
+test('Node entry loads bundled models from disk',async()=>{
+ const {createHumans:createNodeHumans}=await import('../node.js');
+ const g=await createNodeHumans({count:2,action:'walking'});
+ assert.equal(g.userData.people.length,2);g.userData.update(.25);g.userData.dispose();
+});

@@ -22,6 +22,7 @@ See [rig-ready static export and joint definitions](RIG-INTEGRATION.md) for inte
 | `spacing` | `1.05` | Positive grid spacing in metres |
 | `positions` | omitted | One `[x,y,z]` array per person; overrides the grid |
 | `seed` | `0` | Integer for reproducible appearance variation |
+| `modelData` | omitted | Partial `{male: ArrayBuffer, female: ArrayBuffer}` |
 | `modelUrls` | Sibling GLBs | `{male: url, female: url}`; partial overrides supported |
 
 Age maps artistically to body height and brown hair shade, with variation even for a single fixed age. It is not a biological prediction. Mixed female hairstyles favor long hair. Height metadata excludes the extra height of hair.

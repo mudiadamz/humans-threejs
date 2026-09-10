@@ -36,7 +36,7 @@ export async function createHumans(settings = {}) {
  }
  const models = {};
  for (const name of ['male','female']) {
-  const gltf=await new GLTFLoader().loadAsync(modelUrls[name]);
+  const gltf=settings.modelData?.[name] ? await new GLTFLoader().parseAsync(settings.modelData[name],'') : await new GLTFLoader().loadAsync(modelUrls[name]);
   const model=gltf.scene.getObjectByName('Human');
   if(model.userData.rigVersion!==1 || model.geometry.attributes.position.count!==partCounts.reduce((a,b)=>a+b,0))throw new Error('Use the rig-ready v0.3 GLBs shipped with this module');
   models[name]=model;

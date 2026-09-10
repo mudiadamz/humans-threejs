@@ -2,7 +2,48 @@
 
 Lightweight, low-poly people with varied appearance and procedural actions. Create a single person or an instanced crowd through one async function.
 
+## Install from GitHub
+
+```sh
+npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.3.1 three
+```
+
+This repository is private, so your Git client must have access. The package is installed directly from GitHub, not the npm registry. Append `#<commit-sha>` to pin a revision and commit your application's lockfile.
+
+```js
+import { createHumans } from 'humans-threejs';
+import { HUMAN_PARTS, HUMAN_JOINTS } from 'humans-threejs/human-parts';
+```
+
+ES modules; Node.js 18+; Three.js 0.180.x. TypeScript declarations are included. TypeScript consumers should install `@types/three@^0.180.0` as a dev dependency. The library needs no build step.
+
+## Node.js
+
+```js
+import { createHumans } from 'humans-threejs/node';
+const humans = await createHumans({ count: 2 });
+console.log(humans.userData.people);
+humans.userData.dispose();
+```
+
+The Node entry loads the bundled GLBs from disk and constructs Three.js objects; it does not provide a server-side renderer or WebGL context. The static `human-parts` entry has no runtime imports and does not load Three.js.
+
+## Browser assets
+
+Bundlers must emit the two bundled GLBs. With Vite, use explicit asset URLs:
+
+```js
+import { createHumans } from 'humans-threejs';
+import male from 'humans-threejs/human-male.glb?url';
+import female from 'humans-threejs/human-female.glb?url';
+const people = await createHumans({ modelUrls: { male, female } });
+```
+
+Other bundlers can copy the GLBs to public assets and pass their URLs. You can also supply `modelData: { male: arrayBuffer, female: arrayBuffer }` to bypass fetching.
+
 ## Preview
+
+After cloning the repository:
 
 ```sh
 npm install
@@ -17,10 +58,10 @@ Import synchronous joint-local arrays from [`human-parts.js`](human-parts.js), w
 
 ## Use in another project
 
-Copy `create-humans.js`, `human-parts.js`, `human-male.glb`, and `human-female.glb` together into a served asset directory, and install Three.js. Bundlers must include the sibling GLB assets, or pass explicit `modelUrls`.
+Install as above, or copy `create-humans.js`, `human-parts.js`, and both GLBs together into a served directory. For manual file copying, import from your local `./create-humans.js` path.
 
 ```js
-import { createHumans } from './create-humans.js';
+import { createHumans } from 'humans-threejs';
 
 const people = await createHumans({
   count: 100,
@@ -78,3 +119,7 @@ Tests load the real models and verify actions, finite geometry bounds, limb tags
 | `tests/` | Automated construction and regression checks |
 
 This repository is prepared for private project use. No open-source license has been assigned.
+
+## Packaging
+
+`npm pack` runs tests and creates an installable `.tgz`. `private: true` prevents accidental npm-registry publishing; it does not prevent GitHub or tarball installation.

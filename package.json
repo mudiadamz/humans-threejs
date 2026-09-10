@@ -1,30 +1,77 @@
 {
   "name": "humans-threejs",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "Low-poly instanced humans with procedural appearance and actions for Three.js",
   "exports": {
-    ".": "./create-humans.js",
-    "./human-parts": "./human-parts.js",
-    "./human-parts.js": "./human-parts.js"
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./create-humans.js"
+    },
+    "./node": {
+      "types": "./index.d.ts",
+      "import": "./node.js"
+    },
+    "./human-parts": {
+      "types": "./human-parts.d.ts",
+      "import": "./human-parts.js"
+    },
+    "./human-parts.js": {
+      "types": "./human-parts.d.ts",
+      "import": "./human-parts.js"
+    },
+    "./human-male.glb": "./human-male.glb",
+    "./human-female.glb": "./human-female.glb",
+    "./package.json": "./package.json"
   },
   "files": [
     "create-humans.js",
+    "node.js",
+    "index.d.ts",
+    "human-parts.js",
+    "human-parts.d.ts",
     "human-male.glb",
     "human-female.glb",
-    "human-parts.js"
+    "README.md",
+    "SPECS.md",
+    "RIG-INTEGRATION.md",
+    "INDIVIDUAL-CONTROL.md",
+    "index.html",
+    "rig-preview.html",
+    "scripts/preview.mjs"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "preview": "python3 -m http.server 8080 --bind 127.0.0.1",
+    "preview": "node scripts/preview.mjs",
     "test:rig": "node --test tests/rig-parts.test.js",
-    "generate": "python3 scripts/generate-parts.py"
+    "generate": "python3 scripts/generate-parts.py",
+    "prepack": "npm test"
   },
   "peerDependencies": {
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "@types/three": "^0.180.0"
   },
   "devDependencies": {
     "three": "0.180.0"
+  },
+  "main": "./create-humans.js",
+  "types": "./index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mudiadamz/humans-threejs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mudiadamz/humans-threejs/issues"
+  },
+  "homepage": "https://github.com/mudiadamz/humans-threejs#readme",
+  "peerDependenciesMeta": {
+    "@types/three": {
+      "optional": true
+    }
   }
 }

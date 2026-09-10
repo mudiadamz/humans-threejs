@@ -5,7 +5,7 @@ This export addresses items 1–6 of `HUMAN-MODEL-SPEC.md`, plus the optional kn
 ## Synchronous data: no loader or Three.js dependency
 
 ```js
-import { HUMAN_PARTS, HUMAN_JOINTS, HUMAN_LAYOUTS } from './human-parts.js';
+import { HUMAN_PARTS, HUMAN_JOINTS, HUMAN_LAYOUTS } from 'humans-threejs/human-parts';
 
 const j = HUMAN_JOINTS.male;
 const thigh = HUMAN_PARTS.thigh; // { positions: Float32Array, normals: Float32Array }
