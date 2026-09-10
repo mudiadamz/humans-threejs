@@ -14,7 +14,7 @@ const thigh = HUMAN_PARTS.thigh; // { positions: Float32Array, normals: Float32A
 
 This module has no imports, network requests, asynchronous initialization or Three.js dependency. Entries are:
 
-`torsoMale`, `torsoFemale`, `neck`, `head`, `thigh`, `calf`, `foot`, `upperArm`, `forearm`, `hand`.
+`torsoMale`, `torsoFemale`, `neck`, `head`, `thigh`, `calf`, `foot`, `upperArm`, `forearm`, `hand`, `fist`.
 
 All vertices are already **joint-local**. Do not subtract another pivot. Treat shared arrays as read-only; copy if your renderer mutates them. Normals are unit-length, smooth-shaded and use the same orientation as the positions. Geometry is non-indexed triangles.
 
@@ -85,4 +85,4 @@ The male and female GLBs assemble the same arrays into 15 merged body components
 
 This is a topology change from v0.2. Replace the module, `human-parts.js`, and both GLBs together. The updated `createHumans` validates rig version and uses the new metadata; old hard-coded vertex offsets are invalid. `getBodyParts()` still returns model-space geometry with a separate pivot, whereas `HUMAN_PARTS` is already joint-local.
 
-Accessory data and a dedicated fist shape remain a separate follow-up (spec items 8–9). Existing procedural accessories and action APIs remain available through `createHumans`.
+Accessory data remains a separate follow-up (spec item 8). `HUMAN_PARTS.fist` now supplies a compact knuckle and curled-finger shape at the wrist origin (item 9); substitute it for `hand` without moving the joint. Existing procedural accessories and action APIs remain available through `createHumans`.

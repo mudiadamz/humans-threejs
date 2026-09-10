@@ -11,7 +11,7 @@ export interface HumanOptions {
   ageMin?: number; ageMax?: number;
   face?: 'mixed' | 'soft' | 'angular' | 'wide';
   hair?: 'mixed' | 'cropped' | 'swept' | 'bob' | 'long' | 'curls' | 'bald';
-  clothing?: 'hide' | 'none'; carrying?: Carrying; action?: Action;
+  hands?: 'auto' | 'open' | 'fist'; clothing?: 'hide' | 'none'; carrying?: Carrying; action?: Action;
   environmentProps?: boolean; spacing?: number; positions?: Vector3Tuple[]; seed?: number;
   modelUrls?: Partial<Record<'male' | 'female', string | URL>>;
   modelData?: Partial<Record<'male' | 'female', ArrayBuffer>>;

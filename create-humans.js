@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { HUMAN_LAYOUTS, HUMAN_JOINTS } from './human-parts.js';
+import { HUMAN_LAYOUTS, HUMAN_JOINTS, HUMAN_PARTS } from './human-parts.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /** Create one person or an instanced crowd. Returns a THREE.Group; call group.userData.dispose() when finished. */
 export async function createHumans(settings = {}) {
- const options={count:1,variant:'mixed',skin:'mixed',build:'mixed',face:'mixed',hair:'mixed',clothing:'hide',carrying:'none',environmentProps:false,action:'walking',ageMin:20,ageMax:45,spacing:1.05,seed:0,...settings};
+ const options={count:1,variant:'mixed',skin:'mixed',build:'mixed',face:'mixed',hair:'mixed',clothing:'hide',hands:'auto',carrying:'none',environmentProps:false,action:'walking',ageMin:20,ageMax:45,spacing:1.05,seed:0,...settings};
  // Preserve older calls which specified a load without an explicit action.
  if(settings.action===undefined && options.carrying!=='none')options.action='walking-carrying';
  const {count,spacing,positions,ageMin:minAge,ageMax:maxAge,seed:variationSeed}=options;
@@ -13,7 +13,7 @@ export async function createHumans(settings = {}) {
  if(!Number.isFinite(minAge)||!Number.isFinite(maxAge)||minAge<3||maxAge>100||minAge>maxAge)throw new Error('Age range must be ordered and within 3–100');
  if(!Number.isFinite(spacing)||spacing<=0||!Number.isInteger(variationSeed))throw new Error('Use positive spacing and an integer seed');
  if(positions && (positions.length!==count||positions.some(p=>!Array.isArray(p)||p.length!==3||!p.every(Number.isFinite))))throw new Error('positions must have one [x,y,z] per person');
- for(const [key,allowed] of Object.entries({variant:['mixed','male','female'],skin:['mixed',...Array.from({length:8},(_,i)=>String(i))],build:['mixed','slim','average','broad','full'],face:['mixed','soft','angular','wide'],hair:['mixed','cropped','swept','bob','curls','bald','long'],action:['walking','walking-carrying','standing','cutting','picking-fruit','picking-vegetables','sitting-raft','mining','hoeing'],clothing:['hide','none'],carrying:['none','mixed','fruit','vegetables','meat','livestock','fish']})){
+ for(const [key,allowed] of Object.entries({variant:['mixed','male','female'],skin:['mixed',...Array.from({length:8},(_,i)=>String(i))],build:['mixed','slim','average','broad','full'],face:['mixed','soft','angular','wide'],hair:['mixed','cropped','swept','bob','curls','bald','long'],action:['walking','walking-carrying','standing','cutting','picking-fruit','picking-vegetables','sitting-raft','mining','hoeing'],hands:['auto','open','fist'],clothing:['hide','none'],carrying:['none','mixed','fruit','vegetables','meat','livestock','fish']})){
   if(!allowed.includes(String(options[key])))throw new Error(`Invalid ${key}: ${options[key]}`);
  }
  const modelUrls={male:new URL('./human-male.glb',import.meta.url).href,female:new URL('./human-female.glb',import.meta.url).href,...settings.modelUrls};
@@ -57,6 +57,14 @@ export async function createHumans(settings = {}) {
   for(const build of builds){
    const geometry=model.geometry.clone();
    const position=geometry.attributes.position;
+   const holding=options.action==='walking-carrying'||(options.action==='standing'&&options.carrying!=='none');
+   for(const id of [8,14]){
+    const closed=options.hands==='fist'||(options.hands==='auto'&&(holding||['mining','hoeing'].includes(options.action)||(options.action==='cutting'&&id===14)));
+    if(closed){const piece=HUMAN_LAYOUTS[name][id],p=piece.pivot,src=HUMAN_PARTS.fist.positions;
+     if(src.length!==piece.count*3)throw new Error('Fist topology must match the hand');
+     for(let i=0;i<piece.count;i++)position.setXYZ(piece.start+i,src[i*3]+p[0],src[i*3+1]+p[1],src[i*3+2]+p[2]);
+    }
+   }
    const limbIds=new Float32Array(position.count),partIds=new Float32Array(position.count);
    layout.forEach((p,id)=>{
     const limb=/Thigh$/.test(p.name)?1:/Calf$|Foot$/.test(p.name)?2:/UpperArm$|Forearm$|Hand$/.test(p.name)?3:0;

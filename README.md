@@ -5,7 +5,7 @@ Lightweight, low-poly people with varied appearance and procedural actions. Crea
 ## Install from GitHub
 
 ```sh
-npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.4.1 three
+npm install git+https://github.com/mudiadamz/humans-threejs.git#v0.4.2 three
 ```
 
 This repository is private, so your Git client must have access. The package is installed directly from GitHub, not the npm registry. Append `#<commit-sha>` to pin a revision and commit your application's lockfile.
@@ -131,3 +131,7 @@ Softer shading, rounder jaw/skull and torso contours, tapered limbs and rounded 
 ## v0.4.1 appearance refinement
 
 Shaped forehead/temple hairlines, clearer eyes and a smaller nose bridge, a fuller jaw, and fitted hide clothing with a waist belt. Body joint positions and shared limb geometry conventions remain unchanged.
+
+## Hands and fists
+
+`hands: "auto"` (default) closes both hands for mining, hoeing, and carrying, and only the tool hand for cutting. Set `hands: "open"` or `"fist"` to override. `HUMAN_PARTS.fist` is a synchronous, joint-local closed-fist shape for external rigs, with the same wrist origin and vertex count as `hand`.

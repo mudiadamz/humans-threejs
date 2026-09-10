@@ -1,5 +1,5 @@
 export type PartName = 'torso' | 'neck' | 'head' | 'leftThigh' | 'leftCalf' | 'leftFoot' | 'leftUpperArm' | 'leftForearm' | 'leftHand' | 'rightThigh' | 'rightCalf' | 'rightFoot' | 'rightUpperArm' | 'rightForearm' | 'rightHand';
-export type ShapeName = 'torsoMale' | 'torsoFemale' | 'neck' | 'head' | 'thigh' | 'calf' | 'foot' | 'upperArm' | 'forearm' | 'hand';
+export type ShapeName = 'torsoMale' | 'torsoFemale' | 'neck' | 'head' | 'thigh' | 'calf' | 'foot' | 'upperArm' | 'forearm' | 'hand' | 'fist';
 export type Vector3Tuple = [number, number, number];
 export interface BodyPartData { positions: Float32Array; normals: Float32Array }
 export interface JointTable {

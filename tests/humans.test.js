@@ -77,3 +77,14 @@ test('Node entry loads bundled models from disk',async()=>{
  const g=await createNodeHumans({count:2,action:'walking'});
  assert.equal(g.userData.people.length,2);g.userData.update(.25);g.userData.dispose();
 });
+
+test('automatic tool fists and explicit open-hand override',async()=>{
+ const a=await createHumans({count:1,action:'cutting',modelUrls});
+ const b=await createHumans({count:1,action:'cutting',hands:'open',modelUrls});
+ const pa=a.userData.getBodyParts(0),pb=b.userData.getBodyParts(0);
+ assert.deepEqual(pa.leftHand.geometry.attributes.position.array,pb.leftHand.geometry.attributes.position.array);
+ assert.notDeepEqual(pa.rightHand.geometry.attributes.position.array,pb.rightHand.geometry.attributes.position.array);
+ assert.deepEqual(pa.rightHand.pivot,pb.rightHand.pivot);
+ for(const parts of [pa,pb])Object.values(parts).forEach(p=>p.geometry.dispose());
+ a.userData.dispose();b.userData.dispose();
+});

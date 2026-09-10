@@ -15,6 +15,7 @@ See [rig-ready static export and joint definitions](RIG-INTEGRATION.md) for inte
 | `ageMin`, `ageMax` | `20`, `45` | Ordered numbers in 3–100 |
 | `face` | `'mixed'` | `mixed`, `soft`, `angular`, `wide` |
 | `hair` | `'mixed'` | `mixed`, `cropped`, `swept`, `bob`, `long`, `curls`, `bald` |
+| `hands` | `auto` | `auto`, `open`, `fist` |
 | `clothing` | `'hide'` | `hide`, `none` |
 | `carrying` | `'none'` | `none`, `mixed`, `fruit`, `vegetables`, `meat`, `fish`, `livestock` |
 | `action` | `'walking'` | See actions below |
